@@ -265,6 +265,8 @@ io.on("connection", (socket) => {
         status: "drawing",
         drawerId: socket.id,
         word: room.gameState.word,
+        round: room.gameState.currentRound,
+        maxRounds: room.settings.rounds,
       });
     }
 
