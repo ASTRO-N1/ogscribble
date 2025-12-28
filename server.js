@@ -76,31 +76,36 @@ function generateCode() {
 function getRandomWords(count) {
   return WORDS.sort(() => 0.5 - Math.random()).slice(0, count);
 }
-function getRoomCode(socket) {
-  return Array.from(socket.rooms).find((r) => r.length === 6 && !isNaN(r));
-}
 
 // --- GAME LOGIC ---
 function nextTurn(roomCode) {
   const room = rooms[roomCode];
   if (!room) return;
 
-  // Clean up users who might have disconnected silently
   const playerIds = Object.keys(room.users);
   if (playerIds.length === 0) return;
 
   let available = playerIds.filter(
     (id) => !room.gameState.drawersThisRound.includes(id)
   );
+
   if (available.length === 0) {
     room.gameState.currentRound++;
     room.gameState.drawersThisRound = [];
     available = playerIds;
-    if (room.gameState.currentRound > room.settings.rounds)
+
+    if (room.gameState.currentRound > room.settings.rounds) {
       return endGame(roomCode);
+    }
   }
 
   const nextDrawerId = available[Math.floor(Math.random() * available.length)];
+
+  // ✅ SAFETY CHECK (correct place)
+  if (!room.users[nextDrawerId]) {
+    return nextTurn(roomCode);
+  }
+
   room.gameState.drawer = nextDrawerId;
   room.gameState.drawersThisRound.push(nextDrawerId);
 
@@ -117,6 +122,7 @@ function nextTurn(roomCode) {
     round: room.gameState.currentRound,
     maxRounds: room.settings.rounds,
   });
+
   const choices = getRandomWords(3);
   room.gameState.wordChoices = choices;
   io.to(nextDrawerId).emit("choose-word", choices);
@@ -138,6 +144,8 @@ function startRound(roomCode, word) {
     drawer: room.users[room.gameState.drawer].name,
     drawerId: room.gameState.drawer,
     time: room.gameState.roundTime,
+    round: room.gameState.currentRound,
+    maxRounds: room.settings.rounds,
   });
 
   // Private update for Drawer
@@ -146,6 +154,8 @@ function startRound(roomCode, word) {
     drawer: room.users[room.gameState.drawer].name,
     drawerId: room.gameState.drawer,
     word: word,
+    round: room.gameState.currentRound,
+    maxRounds: room.settings.rounds,
   });
 
   clearInterval(room.timer);
@@ -166,6 +176,8 @@ function endRound(roomCode) {
     status: "result",
     word: room.gameState.word,
     scores: Object.values(room.users),
+    round: room.gameState.currentRound,
+    maxRounds: room.settings.rounds,
   });
   setTimeout(() => nextTurn(roomCode), 5000);
 }
@@ -178,6 +190,8 @@ function endGame(roomCode) {
   io.to(roomCode).emit("game-update", {
     status: "game-over",
     scores: Object.values(room.users).sort((a, b) => b.score - a.score),
+    round: room.gameState.currentRound,
+    maxRounds: room.settings.rounds,
   });
   setTimeout(() => {
     if (rooms[roomCode]) {
@@ -201,7 +215,7 @@ function endGame(roomCode) {
 io.on("connection", (socket) => {
   // NEW: Manual Sync Request (Fixes the "Background Tab" issue)
   socket.on("request-state", () => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (!code || !rooms[code]) return;
 
     const room = rooms[code];
@@ -211,6 +225,13 @@ io.on("connection", (socket) => {
       users: Object.values(room.users),
       host: room.host,
     });
+
+    if (!room.users[room.gameState.drawer]) {
+      socket.emit("game-update", {
+        status: "waiting",
+      });
+      return;
+    }
 
     // Resend game state
     socket.emit("game-update", {
@@ -320,7 +341,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("draw", (data) => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (code && rooms[code]) {
       rooms[code].drawHistory.push(data);
       socket.to(code).emit("draw", data);
@@ -328,7 +349,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("fill", (data) => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (code && rooms[code]) {
       data.type = "fill";
       rooms[code].drawHistory.push(data);
@@ -337,12 +358,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("sync-board", (imgData) => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (code) socket.to(code).emit("sync-board", imgData);
   });
 
   socket.on("clear", () => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (code) {
       rooms[code].drawHistory = [];
       io.to(code).emit("clear");
@@ -367,7 +388,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("word-selected", (w) => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     if (!code || !rooms[code]) return;
 
     const room = rooms[code];
@@ -384,7 +405,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("chat", (msg) => {
-    const code = getRoomCode(socket);
+    const code = socket.roomCode;
     const room = rooms[code];
     if (!room) return;
     const user = room.users[socket.id];
@@ -428,6 +449,13 @@ io.on("connection", (socket) => {
 
     // Remove user
     delete room.users[socket.id];
+    room.gameState.drawersThisRound = room.gameState.drawersThisRound.filter(
+      (id) => id !== socket.id
+    );
+
+    room.gameState.guessed = room.gameState.guessed.filter(
+      (id) => id !== socket.id
+    );
 
     // If room empty → delete it
     if (Object.keys(room.users).length === 0) {
@@ -444,6 +472,9 @@ io.on("connection", (socket) => {
     // 🔥 CRITICAL FIX: if drawer left, skip immediately
     if (wasDrawer && room.gameState.status !== "lobby") {
       clearInterval(room.timer);
+      room.gameState.roundTime = null;
+      room.gameState.word = null;
+      room.gameState.guessed = [];
       setTimeout(() => nextTurn(code), 500);
     }
 
