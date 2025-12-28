@@ -20,7 +20,7 @@
         touch-action: none;
       }
 
-      /* --- VIEWS --- */
+      /* VIEWS */
       .view {
         display: none;
         width: 100%;
@@ -34,7 +34,7 @@
         display: flex;
       }
 
-      /* --- LANDING PAGE --- */
+      /* LANDING PAGE */
       #view-landing {
         background-color: #ffffff;
         background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
@@ -76,9 +76,6 @@
         font-size: 16px;
         outline: none;
       }
-      .landing-input:focus {
-        border-color: #5865f2;
-      }
       .btn-large {
         padding: 15px;
         border: none;
@@ -86,7 +83,6 @@
         font-size: 18px;
         font-weight: bold;
         cursor: pointer;
-        transition: 0.1s;
         border: 2px solid #000;
         color: white;
       }
@@ -96,11 +92,8 @@
       .btn-join {
         background: #3498db;
       }
-      .btn-large:active {
-        transform: translateY(2px);
-      }
 
-      /* --- LOBBY --- */
+      /* LOBBY */
       #view-lobby {
         background: #5865f2;
         align-items: center;
@@ -117,21 +110,11 @@
         flex-direction: column;
         gap: 15px;
       }
-      .room-code-display {
-        font-size: 24px;
-        text-align: center;
-        background: #eee;
-        padding: 10px;
-        border-radius: 5px;
-        font-weight: bold;
-        letter-spacing: 5px;
-      }
-      .setting-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
+      .lobby-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #ddd;
       }
       select {
         padding: 5px;
@@ -140,25 +123,7 @@
         border: 1px solid #ccc;
       }
 
-      #player-list-lobby {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        margin-top: 10px;
-      }
-      .lobby-avatar {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #ddd;
-        border: 2px solid #fff;
-      }
-
-      /* --- GAME VIEW --- */
-      #view-game {
-        flex-direction: column;
-      }
+      /* GAME LAYOUT (DESKTOP DEFAULT) */
       #game-container {
         display: flex;
         width: 100%;
@@ -216,7 +181,6 @@
         font-weight: bold;
       }
 
-      /* CANVAS WRAPPER - CENTERED */
       #canvas-wrapper {
         flex-grow: 1;
         background: #444;
@@ -227,14 +191,13 @@
         justify-content: center;
         overflow: hidden;
       }
-
       canvas {
         background: white;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        touch-action: none;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
         cursor: crosshair;
         display: block;
-        /* WIDTH/HEIGHT SET BY JS FOR PERFECT RATIO */
       }
 
       .overlay {
@@ -250,11 +213,10 @@
         align-items: center;
         justify-content: center;
         z-index: 100;
-        text-align: center;
         display: none;
       }
 
-      /* --- PRO TOOLBAR --- */
+      /* TOOLBAR */
       #toolbar {
         background: white;
         padding: 8px;
@@ -265,7 +227,6 @@
         justify-content: center;
         box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
       }
-
       .tool-btn {
         width: 35px;
         height: 35px;
@@ -281,9 +242,7 @@
       .tool-btn.active {
         border-color: #333;
         background: #ddd;
-        transform: translateY(2px);
       }
-
       .size-btn {
         width: 30px;
         height: 30px;
@@ -292,6 +251,7 @@
         justify-content: center;
         cursor: pointer;
         border-radius: 50%;
+        background: #eee;
       }
       .dot {
         background: black;
@@ -299,7 +259,6 @@
         pointer-events: none;
       }
 
-      /* Palette */
       #palette-container {
         position: relative;
       }
@@ -314,12 +273,8 @@
         height: 24px;
         cursor: pointer;
         border-radius: 4px;
-        border: 1px solid rgba(0, 0, 0, 0.2);
+        border: 1px solid #ccc;
       }
-      .swatch:hover {
-        transform: scale(1.1);
-      }
-
       #mobile-color-btn {
         display: none;
         width: 35px;
@@ -329,7 +284,7 @@
         cursor: pointer;
       }
 
-      /* Chat */
+      /* CHAT */
       #chat-sidebar {
         width: 250px;
         background: white;
@@ -341,12 +296,6 @@
         flex-grow: 1;
         padding: 10px;
         overflow-y: auto;
-        background: #f9f9f9;
-      }
-      .msg {
-        margin-bottom: 4px;
-        font-size: 13px;
-        word-wrap: break-word;
       }
       .msg.success {
         color: green;
@@ -362,60 +311,81 @@
         border-top: 1px solid #eee;
       }
 
-      /* Mobile Tweaks */
+      /* --- MOBILE LAYOUT (The Requested Changes) --- */
       @media (max-width: 768px) {
-        #game-container {
-          flex-direction: column;
-          padding: 5px;
-        }
         .title-box {
-          padding: 10px 20px; /* Reduce padding so text has more room */
-          margin-bottom: 30px;
+          padding: 10px 20px;
+          margin-bottom: 20px;
         }
         h1 {
-          font-size: 30px; /* Make text smaller to fit on one line */
-          white-space: nowrap; /* Force it to stay on one line */
-        }
-        #player-list {
-          width: 100%;
-          height: 50px;
-          flex-direction: row;
-          overflow-x: auto;
-          order: 1;
-        }
-        #game-header {
-          order: 2;
-          height: 30px;
-          font-size: 12px;
-        }
-        #middle-area {
-          order: 3;
-        }
-        #canvas-wrapper {
-          max-height: 50vh;
-        }
-        #toolbar {
-          order: 4;
-          justify-content: space-between;
-          padding: 5px;
-        }
-        #chat-sidebar {
-          width: 100%;
-          height: 150px;
-          order: 5;
+          font-size: 22px;
+          white-space: nowrap;
         }
 
+        /* SWITCH TO GRID FOR SPLIT BOTTOM */
+        #game-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: auto 1fr; /* Top auto, bottom fills rest */
+          gap: 5px;
+          padding: 5px;
+        }
+
+        /* 1. Header, Canvas, Toolbar (Top Full Width) */
+        #middle-area {
+          grid-column: 1 / -1;
+          grid-row: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        #canvas-wrapper {
+          height: 50vh; /* Fixed height for canvas */
+          max-height: 50vh;
+        }
+        #game-header {
+          height: 30px;
+          font-size: 12px;
+          margin-bottom: 5px;
+        }
+        #toolbar {
+          padding: 5px;
+          margin-top: 5px;
+          flex-wrap: wrap;
+          justify-content: space-between;
+        }
+
+        /* 2. Player List (Bottom Left) */
+        #player-list {
+          grid-column: 1 / 2;
+          grid-row: 2;
+          width: 100% !important;
+          height: 100%;
+          overflow-y: auto;
+          border: 1px solid #ccc;
+        }
+
+        /* 3. Chat (Bottom Right) */
+        #chat-sidebar {
+          grid-column: 2 / 3;
+          grid-row: 2;
+          width: 100% !important;
+          height: 100%;
+          border: 1px solid #ccc;
+        }
+
+        /* Palette Popup */
         #palette {
           display: none;
           position: absolute;
-          bottom: 50px;
-          left: 0;
+          bottom: 60px; /* Above toolbar */
+          left: 50%;
+          transform: translateX(-50%);
           background: white;
           padding: 10px;
           border-radius: 8px;
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-          z-index: 101;
-          width: 200px;
+          z-index: 200;
+          width: 220px;
         }
         #palette.show {
           display: flex;
@@ -436,9 +406,6 @@
         font-size: 18px;
         font-weight: bold;
       }
-      .word-btn:hover {
-        background: #ddd;
-      }
     </style>
   </head>
   <body>
@@ -449,7 +416,7 @@
           type="text"
           id="username"
           class="landing-input"
-          placeholder="Enter Your Name"
+          placeholder="Your Name"
         />
         <button class="btn-large btn-create" onclick="createRoom()">
           CREATE ROOM
@@ -475,11 +442,26 @@
 
     <div id="view-lobby" class="view">
       <div class="lobby-card">
-        <h2 style="margin: 0; text-align: center">LOBBY</h2>
-        <div class="room-code-display" id="lobby-code">CODE: -----</div>
-
+        <h2 style="text-align: center; margin: 0">LOBBY</h2>
+        <div
+          style="
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            background: #eee;
+            padding: 10px;
+          "
+          id="lobby-code"
+        ></div>
         <div id="host-settings" style="display: none">
-          <div class="setting-row">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin: 10px 0;
+            "
+          >
             <label>Rounds:</label>
             <select id="rounds-select" onchange="updateSettings()">
               <option value="3">3</option>
@@ -487,7 +469,13 @@
               <option value="7">7</option>
             </select>
           </div>
-          <div class="setting-row">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin: 10px 0;
+            "
+          >
             <label>Draw Time:</label>
             <select id="time-select" onchange="updateSettings()">
               <option value="30">30s</option>
@@ -497,7 +485,7 @@
           </div>
           <button
             class="btn-large btn-create"
-            style="width: 100%; margin-top: 10px"
+            style="width: 100%; margin-top: 15px"
             onclick="socket.emit('start-game', {code: currentCode})"
           >
             START GAME
@@ -509,13 +497,20 @@
         >
           Waiting for host...
         </div>
-        <div id="player-list-lobby"></div>
+        <div
+          id="player-list-lobby"
+          style="
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+          "
+        ></div>
       </div>
     </div>
 
     <div id="view-game" class="view">
       <div id="game-container">
-        <div id="player-list"></div>
         <div id="middle-area">
           <div id="game-header"></div>
           <div id="canvas-wrapper">
@@ -532,17 +527,13 @@
               <div id="result-content"></div>
             </div>
           </div>
-
           <div id="toolbar">
             <div
               id="mobile-color-btn"
               style="background: black"
               onclick="togglePalette()"
             ></div>
-
-            <div id="palette-container">
-              <div id="palette"></div>
-            </div>
+            <div id="palette-container"><div id="palette"></div></div>
 
             <div
               style="
@@ -586,14 +577,18 @@
               </div>
               <div
                 class="tool-btn"
-                style="background: #ffcccc"
                 onclick="clearBoard()"
+                style="background: #ffcccc"
               >
                 🗑️
               </div>
+              <div class="tool-btn" onclick="undoLast()" title="Undo">↩️</div>
             </div>
           </div>
         </div>
+
+        <div id="player-list"></div>
+
         <div id="chat-sidebar">
           <div id="chat-box"></div>
           <input type="text" id="chatInput" placeholder="Guess here..." />
@@ -604,34 +599,38 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
       const socket = io();
-      let currentCode = null;
-      let myName = "";
-      let amHost = false;
-      let myId = null;
+      let currentCode = null,
+        myId = null,
+        isDrawer = false;
 
-      // --- CANVAS SETUP & RESOLUTION FIX ---
+      // --- CANVAS SETUP ---
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      // FIXED RESOLUTION: Game logic runs at 800x600.
-      const GAME_W = 800;
-      const GAME_H = 600;
+      const GAME_W = 800,
+        GAME_H = 600;
       canvas.width = GAME_W;
       canvas.height = GAME_H;
 
-      // --- FIX: INITIALIZE WHITE BACKGROUND ---
       function resetCanvas() {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, GAME_W, GAME_H);
       }
       resetCanvas();
 
-      // --- STATE ---
+      // --- TAB WAKE UP ---
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && currentCode) {
+          console.log("Tab woke up, requesting sync...");
+          socket.emit("request-state");
+        }
+      });
+
+      // --- STATE & PALETTE ---
       let drawing = false,
         currentTool = "pen",
         myColor = "black",
         mySize = 5;
 
-      // --- PALETTE ---
       const colors = [
         "#000000",
         "#555555",
@@ -646,7 +645,7 @@
         "#d37caa",
         "#a0522d",
       ];
-      const paletteDiv = document.getElementById("palette");
+      const pDiv = document.getElementById("palette");
       colors.forEach((c) => {
         const d = document.createElement("div");
         d.className = "swatch";
@@ -658,26 +657,33 @@
           if (window.innerWidth <= 768)
             document.getElementById("palette").classList.remove("show");
         };
-        paletteDiv.appendChild(d);
+        pDiv.appendChild(d);
       });
-
       function togglePalette() {
         document.getElementById("palette").classList.toggle("show");
       }
+      function undoLast() {
+        if (!isDrawer) return;
+        socket.emit("undo");
+      }
 
-      // --- VIEW SWITCHER ---
+      // --- SOCKETS ---
+      socket.on("connect", () => {
+        myId = socket.id;
+        if (currentCode) socket.emit("request-state");
+      });
+
       function showView(id) {
         document
           .querySelectorAll(".view")
           .forEach((v) => v.classList.remove("active"));
         document.getElementById(id).classList.add("active");
-        if (id === "view-game") {
-          setTimeout(resize, 50);
-          setTimeout(resize, 500); // Safety resize
-        }
+        if (id === "view-game")
+          setTimeout(() => {
+            resize();
+          }, 100);
       }
 
-      // --- LOBBY ACTIONS ---
       function createRoom() {
         const name = document.getElementById("username").value || "Host";
         myName = name;
@@ -687,28 +693,24 @@
       function joinRoom() {
         const name = document.getElementById("username").value || "Guest";
         const code = document.getElementById("room-code-input").value;
-        if (!code) return alert("Enter a code!");
-        myName = name;
-        localStorage.setItem("scribble_name", name);
-        socket.emit("join-room", { code, name });
+        if (code) {
+          myName = name;
+          localStorage.setItem("scribble_name", name);
+          socket.emit("join-room", { code, name });
+        }
       }
 
-      // --- SOCKET LISTENERS ---
-      socket.on("connect", () => {
-        myId = socket.id;
-      });
-
+      // --- LISTENERS ---
       socket.on("room-joined", ({ code, isHost, settings }) => {
         currentCode = code;
-        amHost = isHost;
-        document.getElementById("lobby-code").innerText = `CODE: ${code}`;
-        showView("view-lobby");
+        document.getElementById("lobby-code").innerText = code;
         document.getElementById("host-settings").style.display = isHost
           ? "block"
           : "none";
         document.getElementById("guest-msg").style.display = isHost
           ? "none"
           : "block";
+        showView("view-lobby");
         document.getElementById("rounds-select").value = settings.rounds;
         document.getElementById("time-select").value = settings.drawTime;
       });
@@ -741,7 +743,6 @@
       });
 
       function updateSettings() {
-        if (!amHost) return;
         const rounds = parseInt(document.getElementById("rounds-select").value);
         const drawTime = parseInt(document.getElementById("time-select").value);
         socket.emit("update-settings", {
@@ -750,20 +751,13 @@
         });
       }
 
-      // --- GAME LOGIC ---
       let drawerId = null;
-      let isDrawer = false;
-
       socket.on("game-update", (game) => {
         if (game.status === "lobby") {
           showView("view-lobby");
           return;
         }
-
         showView("view-game");
-        const header = document.getElementById("game-header");
-        if (game.round)
-          header.innerHTML = `Round ${game.round}/${game.maxRounds} <span id="timer"></span>`;
 
         drawerId = game.drawerId;
         isDrawer = myId === drawerId;
@@ -771,11 +765,11 @@
         document
           .querySelectorAll(".overlay")
           .forEach((o) => (o.style.display = "none"));
+        const header = document.getElementById("game-header");
+        header.innerHTML = `Round ${game.round}/${game.maxRounds} <span id="timer"></span>`;
 
         if (game.status === "selecting") {
-          document.getElementById(
-            "game-header"
-          ).innerHTML += ` | ${game.drawer} IS CHOOSING...`;
+          header.innerHTML += ` | ${game.drawer} choosing...`;
           if (!isDrawer) {
             document.getElementById("overlay-waiting").style.display = "flex";
             document
@@ -783,32 +777,30 @@
               .querySelector("h1").innerText = `${game.drawer} is choosing...`;
           }
         } else if (game.status === "drawing") {
-          if (isDrawer) header.innerHTML += ` | DRAW: ${game.word}`;
-          else header.innerHTML += ` | GUESS: ${game.drawer} is drawing`;
+          header.innerHTML += isDrawer
+            ? ` | DRAW: ${game.word}`
+            : ` | GUESS NOW!`;
         } else if (game.status === "result" || game.status === "game-over") {
           document.getElementById("overlay-result").style.display = "flex";
           document.getElementById("result-title").innerText =
-            game.status === "game-over"
-              ? "GAME OVER"
-              : `Word was: ${game.word}`;
+            game.status === "game-over" ? "GAME OVER" : `Word: ${game.word}`;
           let html =
             '<div style="background:white; color:black; padding:20px; border-radius:10px;">';
           game.scores.forEach(
             (u, i) => (html += `<div>${i + 1}. ${u.name}: ${u.score}</div>`)
           );
-          html += "</div>";
-          document.getElementById("result-content").innerHTML = html;
+          document.getElementById("result-content").innerHTML = html + "</div>";
         }
       });
 
       socket.on("choose-word", (words) => {
-        document.getElementById("overlay-select").style.display = "flex";
         const div = document.getElementById("word-options");
         div.innerHTML = "";
+        document.getElementById("overlay-select").style.display = "flex";
         words.forEach((w) => {
           const btn = document.createElement("button");
-          btn.className = "word-btn";
           btn.innerText = w;
+          btn.className = "word-btn";
           btn.onclick = () => {
             socket.emit("word-selected", w);
             document.getElementById("overlay-select").style.display = "none";
@@ -819,10 +811,10 @@
 
       socket.on("timer", (t) => {
         if (document.getElementById("timer"))
-          document.getElementById("timer").innerText = ` ⏱️ ${t}`;
+          document.getElementById("timer").innerText = `⏱️ ${t}`;
       });
 
-      // --- DRAWING LOGIC (SMART RESIZE) ---
+      // --- DRAWING LOGIC ---
       function resize() {
         const wrapper = document.getElementById("canvas-wrapper");
         const availW = wrapper.clientWidth;
@@ -844,23 +836,21 @@
       window.addEventListener("resize", resize);
 
       function getPos(e) {
-        const rect = canvas.getBoundingClientRect();
+        const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const scaleX = GAME_W / rect.width;
-        const scaleY = GAME_H / rect.height;
+        const scaleX = GAME_W / r.width;
+        const scaleY = GAME_H / r.height;
         return {
-          x: (clientX - rect.left) * scaleX,
-          y: (clientY - rect.top) * scaleY,
+          x: (clientX - r.left) * scaleX,
+          y: (clientY - r.top) * scaleY,
         };
       }
 
       function start(e) {
         if (!isDrawer) return;
         if (e.cancelable) e.preventDefault();
-
         const p = getPos(e);
-
         if (currentTool === "fill") {
           socket.emit("fill", { x: p.x, y: p.y, color: myColor });
           floodFill(Math.floor(p.x), Math.floor(p.y), myColor);
@@ -871,17 +861,14 @@
         lastX = p.x;
         lastY = p.y;
       }
-
       let lastX = 0,
         lastY = 0;
       function move(e) {
         if (!drawing || !isDrawer) return;
         if (e.cancelable) e.preventDefault();
-
         const p = getPos(e);
         const col = currentTool === "eraser" ? "#ffffff" : myColor;
         const size = currentTool === "eraser" ? 20 : mySize;
-
         drawLine(lastX, lastY, p.x, p.y, col, size);
         socket.emit("draw", {
           x0: lastX,
@@ -897,11 +884,10 @@
       function end() {
         if (drawing) {
           drawing = false;
-          sendSync(); // SNAPSHOT SYNC
+          sendSync();
         }
       }
 
-      // --- NUCLEAR SYNC ---
       function sendSync() {
         if (!isDrawer) return;
         const img = canvas.toDataURL("image/jpeg", 0.5);
@@ -937,8 +923,8 @@
           b = parseInt(hex.slice(5, 7), 16);
         const imgD = ctx.getImageData(0, 0, GAME_W, GAME_H),
           d = imgD.data;
-        const st = (sy * GAME_W + sx) * 4;
-        const sr = d[st],
+        const st = (sy * GAME_W + sx) * 4,
+          sr = d[st],
           sg = d[st + 1],
           sb = d[st + 2];
         if (sr === r && sg === g && sb === b) return;
@@ -985,7 +971,6 @@
         ctx.putImageData(imgD, 0, 0);
       }
 
-      // Socket Events
       socket.on("draw", (d) =>
         drawLine(d.x0, d.y0, d.x1, d.y1, d.color, d.size)
       );
@@ -1001,7 +986,6 @@
         )
       );
 
-      // Chat
       const chatIn = document.getElementById("chatInput");
       const chatBox = document.getElementById("chat-box");
       chatIn.onkeydown = (e) => {
@@ -1015,7 +999,6 @@
         chatBox.scrollTop = chatBox.scrollHeight;
       });
 
-      // UI Helpers
       function setTool(t) {
         currentTool = t;
         document

@@ -4,14 +4,20 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
+
+// --- FIX 1: CONNECTION SETTINGS ---
 const io = new Server(server, {
   cors: { origin: "*" },
-  pingTimeout: 60000, // Keep connection alive longer
+  // "pingTimeout": How long without a pong packet before we consider the connection closed?
+  // Increased to 60s (from 20s) to handle bad mobile data.
+  pingTimeout: 60000,
+  // "pingInterval": How often to check?
   pingInterval: 25000,
 });
 
 app.use(express.static("public"));
 
+// --- CONSTANTS & STATE ---
 const WORDS = [
   "Apple",
   "Banana",
@@ -63,17 +69,25 @@ const WORDS = [
 
 const rooms = {};
 
+// --- HELPERS ---
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 function getRandomWords(count) {
   return WORDS.sort(() => 0.5 - Math.random()).slice(0, count);
 }
+function getRoomCode(socket) {
+  return Array.from(socket.rooms).find((r) => r.length === 6 && !isNaN(r));
+}
 
+// --- GAME LOGIC ---
 function nextTurn(roomCode) {
   const room = rooms[roomCode];
   if (!room) return;
+
+  // Clean up users who might have disconnected silently
   const playerIds = Object.keys(room.users);
+  if (playerIds.length === 0) return;
 
   let available = playerIds.filter(
     (id) => !room.gameState.drawersThisRound.includes(id)
@@ -93,7 +107,7 @@ function nextTurn(roomCode) {
   room.gameState.status = "selecting";
   room.gameState.guessed = [];
   room.gameState.word = null;
-  room.drawHistory = []; // Clear history
+  room.drawHistory = [];
 
   io.to(roomCode).emit("clear");
   io.to(roomCode).emit("game-update", {
@@ -103,18 +117,22 @@ function nextTurn(roomCode) {
     round: room.gameState.currentRound,
     maxRounds: room.settings.rounds,
   });
-
-  io.to(nextDrawerId).emit("choose-word", getRandomWords(3));
+  const choices = getRandomWords(3);
+  room.gameState.wordChoices = choices;
+  io.to(nextDrawerId).emit("choose-word", choices);
 }
 
 function startRound(roomCode, word) {
   const room = rooms[roomCode];
   if (!room) return;
 
+  delete room.gameState.wordChoices;
+
   room.gameState.word = word;
   room.gameState.status = "drawing";
   room.gameState.roundTime = room.settings.drawTime;
 
+  // Update Everyone
   io.to(roomCode).emit("game-update", {
     status: "drawing",
     drawer: room.users[room.gameState.drawer].name,
@@ -122,6 +140,7 @@ function startRound(roomCode, word) {
     time: room.gameState.roundTime,
   });
 
+  // Private update for Drawer
   io.to(room.gameState.drawer).emit("game-update", {
     status: "drawing",
     drawer: room.users[room.gameState.drawer].name,
@@ -178,14 +197,65 @@ function endGame(roomCode) {
   }, 8000);
 }
 
+// --- SOCKET HANDLERS ---
 io.on("connection", (socket) => {
-  // 1. CREATE ROOM
+  // NEW: Manual Sync Request (Fixes the "Background Tab" issue)
+  socket.on("request-state", () => {
+    const code = getRoomCode(socket);
+    if (!code || !rooms[code]) return;
+
+    const room = rooms[code];
+
+    // Resend player list
+    socket.emit("player-update", {
+      users: Object.values(room.users),
+      host: room.host,
+    });
+
+    // Resend game state
+    socket.emit("game-update", {
+      status: room.gameState.status,
+      drawer: room.users[room.gameState.drawer]?.name,
+      drawerId: room.gameState.drawer,
+      round: room.gameState.currentRound,
+      maxRounds: room.settings.rounds,
+      time: room.gameState.roundTime,
+      settings: room.settings,
+    });
+
+    // 🔥 FIX: resend choose-word if drawer missed it
+    if (
+      room.gameState.status === "selecting" &&
+      room.gameState.drawer === socket.id &&
+      room.gameState.wordChoices
+    ) {
+      socket.emit("choose-word", room.gameState.wordChoices);
+    }
+
+    // If drawer missed word reveal
+    if (
+      room.gameState.status === "drawing" &&
+      room.gameState.drawer === socket.id
+    ) {
+      socket.emit("game-update", {
+        status: "drawing",
+        drawerId: socket.id,
+        word: room.gameState.word,
+      });
+    }
+
+    // Resend drawing
+    if (room.drawHistory.length > 0) {
+      socket.emit("history", room.drawHistory);
+    }
+  });
+
   socket.on("create-room", ({ name }) => {
     const code = generateCode();
     rooms[code] = {
       host: socket.id,
       users: {},
-      drawHistory: [], // Only used for late joiners now
+      drawHistory: [],
       timer: null,
       settings: { rounds: 3, drawTime: 60 },
       gameState: {
@@ -198,7 +268,6 @@ io.on("connection", (socket) => {
     joinRoom(socket, code, name);
   });
 
-  // 2. JOIN ROOM
   socket.on("join-room", ({ code, name }) => {
     if (rooms[code]) joinRoom(socket, code, name);
     else socket.emit("error", "Room not found");
@@ -206,6 +275,7 @@ io.on("connection", (socket) => {
 
   function joinRoom(socket, code, name) {
     socket.join(code);
+    socket.roomCode = code;
     const room = rooms[code];
     room.users[socket.id] = {
       id: socket.id,
@@ -213,17 +283,18 @@ io.on("connection", (socket) => {
       score: 0,
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${socket.id}`,
     };
-    socket.emit("room-joined", {
-      code,
-      isHost: socket.id === room.host,
-      settings: room.settings,
-    });
+    // Explicitly tell everyone a new player list exists
     io.to(code).emit("player-update", {
       users: Object.values(room.users),
       host: room.host,
     });
 
-    // If joining mid-game, send current state
+    socket.emit("room-joined", {
+      code,
+      isHost: socket.id === room.host,
+      settings: room.settings,
+    });
+
     if (room.gameState.status !== "lobby") {
       socket.emit("game-update", {
         status: room.gameState.status,
@@ -233,7 +304,6 @@ io.on("connection", (socket) => {
         round: room.gameState.currentRound,
         maxRounds: room.settings.rounds,
       });
-      // Send history for initial load
       socket.emit("history", room.drawHistory);
     }
   }
@@ -249,7 +319,6 @@ io.on("connection", (socket) => {
     if (rooms[code] && socket.id === rooms[code].host) nextTurn(code);
   });
 
-  // --- DRAWING & SYNC ---
   socket.on("draw", (data) => {
     const code = getRoomCode(socket);
     if (code && rooms[code]) {
@@ -267,13 +336,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // *** THE NUCLEAR SYNC FIX ***
   socket.on("sync-board", (imgData) => {
     const code = getRoomCode(socket);
-    if (code) {
-      // Broadcast the EXACT image of the drawer's screen to everyone
-      socket.to(code).emit("sync-board", imgData);
-    }
+    if (code) socket.to(code).emit("sync-board", imgData);
   });
 
   socket.on("clear", () => {
@@ -284,7 +349,39 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("word-selected", (w) => startRound(getRoomCode(socket), w));
+  socket.on("undo", () => {
+    const code = socket.roomCode;
+    if (!code || !rooms[code]) return;
+
+    const room = rooms[code];
+
+    // Only drawer can undo
+    if (room.gameState.drawer !== socket.id) return;
+
+    // Remove last drawing action
+    room.drawHistory.pop();
+
+    // Clear board and resend history
+    io.to(code).emit("clear");
+    io.to(code).emit("history", room.drawHistory);
+  });
+
+  socket.on("word-selected", (w) => {
+    const code = getRoomCode(socket);
+    if (!code || !rooms[code]) return;
+
+    const room = rooms[code];
+
+    if (
+      room.gameState.status !== "selecting" ||
+      room.gameState.drawer !== socket.id ||
+      !room.gameState.wordChoices?.includes(w)
+    ) {
+      return;
+    }
+
+    startRound(code, w);
+  });
 
   socket.on("chat", (msg) => {
     const code = getRoomCode(socket);
@@ -321,26 +418,47 @@ io.on("connection", (socket) => {
     io.to(code).emit("chat", { player: user.name, msg: msg, type: "text" });
   });
 
+  // --- FIX 2: ROBUST DISCONNECT HANDLING ---
   socket.on("disconnect", () => {
-    const code = getRoomCode(socket);
-    if (code && rooms[code]) {
-      delete rooms[code].users[socket.id];
-      if (Object.keys(rooms[code].users).length === 0) {
-        delete rooms[code];
-      } else {
-        if (rooms[code].host === socket.id)
-          rooms[code].host = Object.keys(rooms[code].users)[0];
-        io.to(code).emit("player-update", {
-          users: Object.values(rooms[code].users),
-          host: rooms[code].host,
-        });
-      }
+    const code = socket.roomCode;
+    if (!code || !rooms[code]) return;
+
+    const room = rooms[code];
+    const wasDrawer = room.gameState.drawer === socket.id;
+
+    // Remove user
+    delete room.users[socket.id];
+
+    // If room empty → delete it
+    if (Object.keys(room.users).length === 0) {
+      clearInterval(room.timer);
+      delete rooms[code];
+      return;
     }
+
+    // Reassign host if needed
+    if (room.host === socket.id) {
+      room.host = Object.keys(room.users)[0];
+    }
+
+    // 🔥 CRITICAL FIX: if drawer left, skip immediately
+    if (wasDrawer && room.gameState.status !== "lobby") {
+      clearInterval(room.timer);
+      setTimeout(() => nextTurn(code), 500);
+    }
+
+    // Update everyone
+    io.to(code).emit("player-update", {
+      users: Object.values(room.users),
+      host: room.host,
+    });
+
+    io.to(code).emit("chat", {
+      player: "System",
+      msg: "A player left. Skipping turn if needed.",
+      type: "text",
+    });
   });
 });
 
-function getRoomCode(socket) {
-  return Array.from(socket.rooms).find((r) => r.length === 6 && !isNaN(r));
-}
-
-server.listen(3000, () => console.log("OG Scribble Server running on 3000"));
+server.listen(3000, () => console.log("Server running on 3000"));
