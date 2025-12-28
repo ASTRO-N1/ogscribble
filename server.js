@@ -77,6 +77,45 @@ function getRandomWords(count) {
   return WORDS.sort(() => 0.5 - Math.random()).slice(0, count);
 }
 
+// --- HINT HELPERS ---
+
+function initRevealed(word) {
+  return word.split("").map((c) => (c === " " ? " " : null));
+}
+
+function getEffectiveMaxHints(word, hostMax) {
+  const letters = word.replace(/[^a-zA-Z]/g, "").length;
+  if (letters <= 3) return Math.min(1, hostMax);
+  if (letters <= 5) return Math.min(2, hostMax);
+  return hostMax;
+}
+
+function buildHintSchedule(drawTime, maxHints) {
+  if (maxHints === 0) return [];
+
+  const schedule = [];
+  const start = Math.floor(drawTime * 0.6);
+  const gap = Math.floor((drawTime - start) / maxHints);
+
+  for (let i = 0; i < maxHints; i++) {
+    schedule.push(drawTime - (start + i * gap));
+  }
+  return schedule;
+}
+
+function revealNextLetter(room) {
+  const { word, revealed } = room.gameState;
+
+  const hidden = revealed
+    .map((v, i) => (v === null && word[i] !== " " ? i : null))
+    .filter((i) => i !== null);
+
+  if (hidden.length === 0) return;
+
+  const index = hidden[Math.floor(Math.random() * hidden.length)];
+  revealed[index] = word[index];
+}
+
 // --- GAME LOGIC ---
 function nextTurn(roomCode) {
   const room = rooms[roomCode];
@@ -114,7 +153,6 @@ function nextTurn(roomCode) {
   room.gameState.word = null;
   room.drawHistory = [];
 
-  io.to(roomCode).emit("clear");
   io.to(roomCode).emit("game-update", {
     status: "selecting",
     drawer: room.users[nextDrawerId].name,
@@ -137,6 +175,19 @@ function startRound(roomCode, word) {
   room.gameState.word = word;
   room.gameState.status = "drawing";
   room.gameState.roundTime = room.settings.drawTime;
+
+  // 💡 HINT SETUP
+  const effectiveMaxHints = getEffectiveMaxHints(word, room.settings.maxHints);
+
+  room.gameState.revealed = initRevealed(word);
+  room.gameState.hintSchedule = buildHintSchedule(
+    room.settings.drawTime,
+    effectiveMaxHints
+  );
+  room.gameState.nextHintIndex = 0;
+  io.to(roomCode).emit("hint-update", {
+    revealed: room.gameState.revealed,
+  });
 
   // Update Everyone
   io.to(roomCode).emit("game-update", {
@@ -161,15 +212,36 @@ function startRound(roomCode, word) {
   clearInterval(room.timer);
   room.timer = setInterval(() => {
     if (!rooms[roomCode]) return clearInterval(room.timer);
-    room.gameState.roundTime--;
-    io.to(roomCode).emit("timer", room.gameState.roundTime);
-    if (room.gameState.roundTime <= 0) endRound(roomCode);
+
+    const gs = room.gameState;
+    gs.roundTime--;
+
+    io.to(roomCode).emit("timer", gs.roundTime);
+
+    // 💡 HANDLE HINTS
+    if (
+      gs.status === "drawing" &&
+      gs.nextHintIndex < gs.hintSchedule.length &&
+      gs.roundTime === gs.hintSchedule[gs.nextHintIndex]
+    ) {
+      revealNextLetter(room);
+      gs.nextHintIndex++;
+
+      io.to(roomCode).emit("hint-update", {
+        revealed: gs.revealed,
+      });
+    }
+
+    if (gs.roundTime <= 0) endRound(roomCode);
   }, 1000);
 }
 
 function endRound(roomCode) {
   const room = rooms[roomCode];
   if (!room) return;
+  delete room.gameState.revealed;
+  delete room.gameState.hintSchedule;
+  delete room.gameState.nextHintIndex;
   clearInterval(room.timer);
   room.gameState.status = "result";
   io.to(roomCode).emit("game-update", {
@@ -239,7 +311,15 @@ io.on("connection", (socket) => {
       socket.emit("game-update", { status: "waiting" });
       return;
     }
-
+    if (
+      room.gameState.status === "drawing" &&
+      room.gameState.revealed &&
+      socket.id !== room.gameState.drawer
+    ) {
+      socket.emit("hint-update", {
+        revealed: room.gameState.revealed,
+      });
+    }
     socket.emit("game-update", {
       status: room.gameState.status,
       drawer: room.users[room.gameState.drawer]?.name,
@@ -282,7 +362,7 @@ io.on("connection", (socket) => {
       users: {},
       drawHistory: [],
       timer: null,
-      settings: { rounds: 3, drawTime: 60 },
+      settings: { rounds: 3, drawTime: 60, maxHints: 3 },
       gameState: {
         status: "lobby",
         currentRound: 1,
@@ -346,32 +426,36 @@ io.on("connection", (socket) => {
 
   socket.on("draw", (data) => {
     const code = socket.roomCode;
-    if (code && rooms[code]) {
-      rooms[code].drawHistory.push(data);
-      socket.to(code).emit("draw", data);
-    }
+    if (!code || !rooms[code]) return;
+
+    data.type = "draw";
+    rooms[code].drawHistory.push(data);
+
+    socket.to(code).emit("draw", data);
   });
 
   socket.on("fill", (data) => {
     const code = socket.roomCode;
-    if (code && rooms[code]) {
-      data.type = "fill";
-      rooms[code].drawHistory.push(data);
-      socket.to(code).emit("fill", data);
-    }
-  });
+    if (!code || !rooms[code]) return;
 
-  socket.on("sync-board", (imgData) => {
-    const code = socket.roomCode;
-    if (code) socket.to(code).emit("sync-board", imgData);
-  });
+    rooms[code].drawHistory.push({
+      type: "fill",
+      strokeId: data.strokeId,
+      x: data.x,
+      y: data.y,
+      color: data.color,
+      snapshot: data.snapshot, // 👈 critical
+    });
 
+    socket.to(code).emit("fill", data);
+  });
   socket.on("clear", () => {
     const code = socket.roomCode;
-    if (code) {
-      rooms[code].drawHistory = [];
-      io.to(code).emit("clear");
-    }
+    if (!code || !rooms[code]) return;
+    const room = rooms[code];
+    if (room.gameState.drawer !== socket.id) return;
+    room.drawHistory = [];
+    io.to(code).emit("clear");
   });
 
   socket.on("undo", () => {
@@ -379,14 +463,24 @@ io.on("connection", (socket) => {
     if (!code || !rooms[code]) return;
 
     const room = rooms[code];
-
-    // Only drawer can undo
     if (room.gameState.drawer !== socket.id) return;
+    if (room.drawHistory.length === 0) return;
+    if (room.gameState.status !== "drawing") return;
 
-    // Remove last drawing action
-    room.drawHistory.pop();
+    const last = room.drawHistory[room.drawHistory.length - 1];
 
-    // Clear board and resend history
+    // If last was fill → restore snapshot
+    if (last.type === "fill" && last.snapshot) {
+      room.drawHistory.pop();
+
+      io.to(code).emit("restore-snapshot", last.snapshot);
+      return;
+    }
+
+    // Stroke undo
+    const strokeId = last.strokeId;
+    room.drawHistory = room.drawHistory.filter((x) => x.strokeId !== strokeId);
+
     io.to(code).emit("clear");
     io.to(code).emit("history", room.drawHistory);
   });
