@@ -220,20 +220,26 @@ io.on("connection", (socket) => {
 
     const room = rooms[code];
 
-    // Resend player list
     socket.emit("player-update", {
       users: Object.values(room.users),
       host: room.host,
     });
 
-    if (!room.users[room.gameState.drawer]) {
+    // ✅ LOBBY SHOULD NOT RESTORE GAME VIEW
+    if (room.gameState.status === "lobby") {
       socket.emit("game-update", {
-        status: "waiting",
+        status: "lobby",
+        settings: room.settings,
       });
       return;
     }
 
-    // Resend game state
+    // Guard invalid drawer
+    if (!room.users[room.gameState.drawer]) {
+      socket.emit("game-update", { status: "waiting" });
+      return;
+    }
+
     socket.emit("game-update", {
       status: room.gameState.status,
       drawer: room.users[room.gameState.drawer]?.name,
@@ -241,10 +247,8 @@ io.on("connection", (socket) => {
       round: room.gameState.currentRound,
       maxRounds: room.settings.rounds,
       time: room.gameState.roundTime,
-      settings: room.settings,
     });
 
-    // 🔥 FIX: resend choose-word if drawer missed it
     if (
       room.gameState.status === "selecting" &&
       room.gameState.drawer === socket.id &&
@@ -253,7 +257,6 @@ io.on("connection", (socket) => {
       socket.emit("choose-word", room.gameState.wordChoices);
     }
 
-    // If drawer missed word reveal
     if (
       room.gameState.status === "drawing" &&
       room.gameState.drawer === socket.id
@@ -265,7 +268,6 @@ io.on("connection", (socket) => {
       });
     }
 
-    // Resend drawing
     if (room.drawHistory.length > 0) {
       socket.emit("history", room.drawHistory);
     }
